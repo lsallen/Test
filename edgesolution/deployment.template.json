@@ -1,0 +1,142 @@
+{
+  "$schema-template": "4.0.0",
+  "modulesContent": {
+    "$edgeAgent": {
+      "properties.desired": {
+        "schemaVersion": "1.1",
+        "runtime": {
+          "type": "docker",
+          "settings": {
+            "minDockerVersion": "v1.25",
+            "loggingOptions": "",
+            "registryCredentials": {
+              "deploymentregistryargossimulator": {
+                "username": "$CONTAINER_REGISTRY_USERNAME",
+                "password": "$CONTAINER_REGISTRY_PASSWORD",
+                "address": "deploymentregistryargossimulator.azurecr.io"
+              }
+            }
+          }
+        },
+        "systemModules": {
+          "edgeAgent": {
+            "type": "docker",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-agent:1.4",
+              "createOptions": {}
+            }
+          },
+          "edgeHub": {
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-hub:1.4",
+              "createOptions": {
+                "HostConfig": {
+                  "PortBindings": {
+                    "5671/tcp": [
+                      {
+                        "HostPort": "5671"
+                      }
+                    ],
+                    "8883/tcp": [
+                      {
+                        "HostPort": "8883"
+                      }
+                    ],
+                    "443/tcp": [
+                      {
+                        "HostPort": "443"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "modules": {
+          "blobmodule": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "${MODULES.blobmodule}",
+              "createOptions": {
+                "HostConfig": {
+                  "Binds":["/storage/home/testfolder:/storage"]
+                  }
+              }
+            }
+          },
+          "azureblobstorageoniotedge": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "mcr.microsoft.com/azure-blob-storage:latest",
+              "createOptions": {
+
+                "Env":[
+                  "LOCAL_STORAGE_ACCOUNT_NAME=gatewaystorage",
+                  "LOCAL_STORAGE_ACCOUNT_KEY=aARk5M12K0xCSo7G5yCNSA=="
+                 ],
+                 "HostConfig":{
+                   "Binds": ["my-volume:/blobroot"],
+                   "PortBindings":{
+                     "11002/tcp": [{"HostPort":"11002"}]
+                   }
+                 },
+
+                 "ExposedPorts": {
+                  "11002/tcp": {}
+                }
+
+                
+              }
+            }
+          }
+        }
+      }
+    },
+    "$edgeHub": {
+      "properties.desired": {
+        "schemaVersion": "1.2",
+        "routes": {
+          "blobmoduleToIoTHub": "FROM /messages/modules/blobmodule/outputs/* INTO $upstream"
+          
+        },
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
+        }
+      }
+    },
+
+    "azureblobstorageoniotedge":{
+      "properties.desired": {
+        "deviceAutoDeleteProperties": {
+          "deleteOn": false,
+          "deleteAfterMinutes": 30,
+          "retainWhileUploading": true
+        },
+        "deviceToCloudUploadProperties": {
+          "uploadOn": true,
+          "uploadOrder": "OldestFirst",
+          "cloudStorageConnectionString": "DefaultEndpointsProtocol=https;AccountName=argosstorage01;AccountKey=BSG0FaSOBnkLOq0LApwSVROmBSHZ2sHHoj4puwU6c1V/Hm/Zsn20yx5qTRlZFkWyx6LnoJVp0LOz+AStopt4kw==;EndpointSuffix=core.windows.net",
+          "storageContainersForUpload": {
+            "localblob": {
+              "target": "cloudblob"
+            },
+            "local2":{
+              "target": "%m-%c"
+            }
+          },
+          "deleteAfterUpload": false
+        }
+      }
+    }
+  }
+}
